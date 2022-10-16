@@ -1,0 +1,1051 @@
+// remap jQuery to $
+(function($){
+	
+	//Ready
+	$(function() {
+		
+		//Init preloader
+		if($('body').hasClass('index_page')) {
+			QueryLoader.init();
+		}
+		
+		//Fix for Ask & Submit pages
+		if( (!$('body').hasClass('index_page')) && (!$('body').hasClass('permalink_page')) ){
+			$('body').addClass('permalink_page');
+		}
+		
+		if(InspireWell.overallColumn){
+			$masonedColumn = $('#overall_inner');
+			$masonedColumn.addClass('overall_col');
+		} else {
+			$masonedColumn = $('#overall');
+		}
+		
+		//Progressive loading - call masonry() after each post image loads
+		if(InspireWell.progressiveLoad){
+			$masonedColumn.masonry({ 
+				columnWidth: 275,
+				itemSelector: '.brick'
+			});
+			$('#overall .post').css({ visibility: 'visible' });
+			$('div.box img').load(function(){
+				$masonedColumn.masonry();
+			});
+		}
+		if(InspireWell.infiniteScrolling && InspireWell.indexPage){
+			$('li.page_next, li.page_previous').css({ display: 'none' });
+		}
+		
+		//Vimeo iFrame manipulation
+		var vColor = InspireWell.accentColor.substr(1);
+	    $("iframe[src^='http://player.vimeo.com']").each(function() {
+			//Clean up player src w/ set color
+			var $vFrame = $(this);
+			var src 	= $vFrame.attr("src");
+			var player	= src.split("?")[0];
+			var newSrc	= player+"?&title=0&byline=0&portrait=0&color="+vColor;
+			var vBox	= $vFrame.closest('.box');
+			var vWidth	= vBox.width();
+			$vFrame.attr("src", newSrc);
+			//Resize player based on width
+			sizeRatio = $vFrame.attr("width") / $vFrame.attr("height");
+			newWidth = vWidth;
+			newHeight = Math.round(newWidth / sizeRatio);
+			$vFrame.attr("width", newWidth).attr("height", newHeight);
+			if(InspireWell.progressiveLoad){
+				$masonedColumn.masonry();
+			}
+	    });
+		
+		// Resize video embeds
+		$('div.text, div.video, div.photoset, div.answer, div.liked_posts').each(function(){
+			$(this).find('embed').each(function(){
+				if($(this).attr('width') == "100%"){
+					return false;
+				}
+				sizeRatio = $(this).attr('width') / $(this).attr('height');
+				newWidth = $(this).parent().parent().width();
+				newHeight = Math.round(newWidth / sizeRatio);
+				$(this)
+					.attr('width', newWidth)
+					.attr('height', newHeight)
+					.parent()
+						.attr('width', newWidth)
+						.attr('height', newHeight);
+				if(InspireWell.progressiveLoad){
+					$masonedColumn.masonry();
+				}
+			});
+		});
+		
+		//Back to the top of the page
+		$('li.page_top a').click(function(){
+			event.preventDefault();
+			$( 'html, body' ).animate( { scrollTop: 0 }, 'slow' );
+			return false;
+		});
+		
+		//Remove tags if they exist, but only for layout
+		$('ul.tags').each(function(){
+			if($(this).find('li').length == 1){
+				if( $(this).find('li').is(':hidden') ){
+					$(this).hide();
+				}
+			};
+		});
+		
+		//Disable thumbnail overlay
+		$('.thumbnail_link').each(function(){
+			if($(this).parent().is('span')) {
+				$(this).hide();
+			}
+		});
+
+		//Image post thumbnail overlay
+		$(".thumbnail:has(a)").hover(
+			function() {
+				$(this).children(".overlay").fadeIn();
+			},
+			function(){
+				$(this).children(".overlay").fadeOut();
+			}
+		);
+		
+		//Share this over
+		function shareThisOver() {
+			$(this).find('.share_links_wrapper').show();
+			$(this).find('.share_this_over').hide();
+			$(this).find('input').focus();
+			
+			$tweetBlock = $(this).find('.share_links_twitter');
+			//log("tweetBlock", $tweetBlock.html());
+			if($tweetBlock.is(':empty')){
+				var tweet_url = $tweetBlock.attr('data-permalink');
+				var tweet_via = "";
+				if(InspireWell.twitterUser){
+					tweet_via = "data-via=" + InspireWell.twitterUser + " ";
+				}
+				var tweet_link = '<a href="http://twitter.com/share" class="twitter-share-button" data-url="' + tweet_url + '" ' + tweet_via + 'data-related="stylehatch:Hand Crafted Digital Goods &amp; Premium Tumblr Themes"></a>';
+				$tweetBlock.html(tweet_link);
+				var loadedTweetButton = new twttr.TweetButton($tweetBlock.find('a.twitter-share-button').get(0));
+				loadedTweetButton.render();
+			}
+			
+			$faceBlock = $(this).find('.share_links_facebook');
+			//log("faceBlock", $faceBlock.html());
+			if($faceBlock.is(':empty')){
+				//log('should be in here')
+				var face_url = $faceBlock.attr('data-permalink');
+				var face_iframe = '<iframe src="http://www.facebook.com/plugins/like.php?href=' + face_url + '&amp;layout=button_count&amp;show_faces=false&amp;width=110&amp;action=like&amp;font=lucida+grande&amp;colorscheme=light&amp;height=21" scrolling="no" frameborder="0" style="border:none; overflow:hidden; width:110px; height:21px;" allowTransparency="true"></iframe>';
+				$faceBlock.html(face_iframe);
+			}
+			
+
+		};
+		function shareThisOut() {
+			$(this).find('.share_links_wrapper').hide();
+		};
+		var shareThisConfig = {
+			sensitivity: 2,
+			interval: 0,
+			over: shareThisOver,
+			timeout: 500,
+			out: shareThisOut
+		};
+		$('ul.utils li.share').hoverIntent(shareThisConfig);
+		$('.photo.t_xl').each(function(){
+			var fullSize = $(this).find('.thumbnail_lightbox').attr('href');
+			$(this).find('.thumbnail img').attr('src', fullSize);
+		});
+
+		if(InspireWell.useLightbox){
+			$("a.thumbnail_lightbox").colorbox({photo:true});
+		}
+		
+		$('ul.tags li.tt_xs, ul.tags li.tt_xs').remove();
+		
+		//set embeds to wmode = opaque
+		$("embed").attr("wmode", "opaque");
+		var embedTag;
+		$("embed").each(function(i) {
+		       embedTag = $(this).attr("outerHTML");
+		       if ((embedTag != null) && (embedTag.length > 0)) {
+		               embedTag = embedTag.replace(/embed /gi, "embed wmode='opaque' ");
+		               $(this).attr("outerHTML", embedTag);
+		       } else {
+		               $(this).wrap("<div></div>");
+		       }
+		});
+		
+		//Twitter integration
+		if(InspireWell.twitterUser){
+			$.ajax({
+				url: "http://api.twitter.com/1/statuses/user_timeline.json?screen_name=" + InspireWell.twitterUser + "&count=4",
+				dataType: "jsonp",
+				timeout: 5000,
+				success: function(data){
+					$.each(data, function(i,tweet){
+						var tweet_text		= tweet.text;
+						var url_exp 		= /(^|&lt;|\s)(((https?|ftp):\/\/|mailto:).+?)(\s|&gt;|$)/g;
+						var user_exp		= /(\B)(@)\b([a-zA-Z0-9_\/-]{1,256})/g;
+						var hash_exp		= /(\B)(#)\b([a-zA-Z0-9_\/-]{1,256})/g;
+						var tweet_text		= tweet_text.replace(url_exp, '<a href="$&">$&</a>');
+						var tweet_text		= tweet_text.replace(user_exp, '<a href="http://twitter.com/#!/$&">$&</a>');
+						var tweet_text		= tweet_text.replace(hash_exp, '<a href="http://search.twitter.com/search?q=%23$&">$&</a>');
+						var tweet_text		= tweet_text.replace(/q=%23#/g, 'q=%23');
+						var tweet_text		= tweet_text.replace(/http:\/\/twitter.com\/@/g, 'http://twitter.com/');
+						var tweet_timeago 	= jQuery.timeago(new Date(tweet.created_at));						
+						var tweetago_string = '<a href="http://twitter.com/#!/' + InspireWell.twitterUser + '/status/' + tweet.id + '" target="_blank"><span class="timeago"> - ' + tweet_timeago + '</span></a>';
+						var tweet_html		= '<p>' + tweet_text + '</p>';
+						$(".twitter_wrap").html(tweet_html);
+						$("p.twitter_by em").html(tweetago_string);
+						
+						$masonedColumn.masonry();
+						
+						return false;
+					});
+				}
+			});
+		}
+		
+		if(InspireWell.infiniteScrolling && InspireWell.indexPage){
+			$masonedColumn.infinitescroll({
+				navSelector  : 'ul.page_nav',  // selector for the paged navigation 
+				nextSelector : 'ul.page_nav li.page_next a',  // selector for the NEXT link (to page 2)
+				itemSelector : '.post',     // selector for all items you'll retrieve
+				loadingImg : '',
+				donetext  : 'No more pages to load.',
+				errorCallback: function() { 
+				  // fade out the error message after 2 seconds
+				  //$('#infscr-loading').animate({opacity: .8},2000).fadeOut('normal');   
+				}
+				},
+				// call masonry as a callback
+				function( newElements ) { 
+					
+					$(newElements).css({ visibility: 'hidden' });
+
+					$(newElements).each(function() {
+						if($(this).hasClass("audio")){
+							var audioID = $(this).attr("id");
+							var $audioPost = $(this);
+							$audioPost.find(".player span").css({ visibility: 'hidden' });
+
+							var script=document.createElement('script');
+							script.type='text/javascript';
+							script.src="http://assets.tumblr.com/javascript/tumblelog.js?16";
+
+							$("body").append(script);
+
+							$.ajax({
+								url: "http://thetestinggrounds.tumblr.com/api/read/json?id=" + audioID,
+								dataType: "jsonp",
+								timeout: 5000,
+								success: function(data){
+									$audioPost.find(".player span").css({ visibility: 'visible' });
+									$audioPost.find("span:first").append('<script type="text/javascript">replaceIfFlash(9,"audio_player_' + audioID + '",\'\x3cdiv class=\x22audio_player\x22\x3e' + data.posts[0]['audio-player'] +'\x3c/div\x3e\')</script>');
+								}
+							});
+						}
+
+					});
+
+
+					//Vimeo iFrame manipulation
+					var vColor = InspireWell.accentColor.substr(1);
+				    $(newElements).find("iframe[src^='http://player.vimeo.com']").each(function() {
+						//Clean up player src w/ set color
+						var $vFrame = $(this);
+						var src 	= $vFrame.attr("src");
+						var player	= src.split("?")[0];
+						var newSrc	= player+"?&title=0&byline=0&portrait=0&color="+vColor;
+						var vBox	= $vFrame.closest('.box');
+						var vWidth	= vBox.width();
+						$vFrame.attr("src", newSrc);
+						//Resize player based on width
+						sizeRatio = $vFrame.attr("width") / $vFrame.attr("height");
+						newWidth = vWidth;
+						newHeight = Math.round(newWidth / sizeRatio);
+						$vFrame.attr("width", newWidth).attr("height", newHeight);
+				    });
+
+					// Resize video embeds
+					$(newElements).each(function(){
+						if($(this).is(".text, .video, .photoset, .answer")){
+							$(this).find('embed').each(function(){
+								if($(this).attr('width') == "100%"){
+									return false;
+								}
+								sizeRatio = $(this).attr('width') / $(this).attr('height');
+								newWidth = $(this).parent().parent().width();
+								newHeight = Math.round(newWidth / sizeRatio);
+								$(this)
+									.attr('width', newWidth)
+									.attr('height', newHeight)
+									.parent()
+										.attr('width', newWidth)
+										.attr('height', newHeight);
+							});
+						}
+					});
+
+					//Remove tags if they exist, but only for layout
+					$(newElements).find('ul.tags').each(function(){
+						if($(this).find('li').length == 1){
+							if( $(this).find('li').is(':hidden') ){
+								$(this).hide();
+							}
+						};
+					});
+
+					//Disable thumbnail overlay
+					$(newElements).find('.thumbnail_link').each(function(){
+						if($(this).parent().is('span')) {
+							$(this).hide();
+						}
+					});
+
+					//Image post thumbnail overlay
+					$(newElements).find(".thumbnail:has(a)").hover(
+						function() {
+							$(this).children(".overlay").fadeIn();
+						},
+						function(){
+							$(this).children(".overlay").fadeOut();
+						}
+					);
+
+					$(newElements).find('ul.utils li.share').hoverIntent(shareThisConfig);
+					$(newElements).find('.photo.t_xl').each(function(){
+						var fullSize = $(this).find('.thumbnail_lightbox').attr('href');
+						$(this).find('.thumbnail img').attr('src', fullSize);
+					});
+
+					if(InspireWell.useLightbox){
+						$(newElements).find("a.thumbnail_lightbox").colorbox({photo:true});
+					}
+
+					$(newElements).find('ul.tags li.tt_xs, ul.tags li.tt_xs').remove();
+					
+					if(InspireWell.disqusUsername){
+						(function() {
+							var links = document.getElementsByTagName('a');
+							var query = '?';
+							for(var i = 0; i < links.length; i++) {
+							if(links[i].href.indexOf('#disqus_thread') >= 0) {
+								query += 'url' + i + '=' + encodeURIComponent(links[i].href) + '&';
+							}
+							}
+							var script=document.createElement('script');
+							script.type='text/javascript';
+							script.src='http://disqus.com/forums/' + InspireWell.disqusUsername + '/get_num_replies.js' + query;
+							//log(script.src);
+
+							$("body").append(script);
+						})();
+					}
+					
+
+					setTimeout(function() {
+
+						$masonedColumn.masonry({ appendedContent: $(newElements) });
+						$(newElements).css({ visibility: 'visible' });
+
+					}, 1200);
+				}
+			);
+		}//end InspireWell.infiniteScrolling
+		
+
+		
+	}); //End Ready
+	
+	$(window).load(function(){
+		$("#loading").fadeOut(250);		
+		$masonedColumn.masonry({ 
+			columnWidth: 275,
+			itemSelector: '.brick'
+		});
+		
+		if(!InspireWell.progressiveLoad){
+			$('#overall .post').css({ visibility: 'visible' });
+		}
+
+		$masonedColumn.masonry();
+
+	}); //End Load
+	
+
+})(window.jQuery);
+
+/*************************************************
+**  jQuery Masonry version 1.3.2
+**  Copyright David DeSandro, licensed MIT
+**  http://desandro.com/resources/jquery-masonry
+**************************************************/
+(function(e){var n=e.event,o;n.special.smartresize={setup:function(){e(this).bind("resize",n.special.smartresize.handler)},teardown:function(){e(this).unbind("resize",n.special.smartresize.handler)},handler:function(j,l){var g=this,d=arguments;j.type="smartresize";o&&clearTimeout(o);o=setTimeout(function(){jQuery.event.handle.apply(g,d)},l==="execAsap"?0:100)}};e.fn.smartresize=function(j){return j?this.bind("smartresize",j):this.trigger("smartresize",["execAsap"])};e.fn.masonry=function(j,l){var g=
+{getBricks:function(d,b,a){var c=a.itemSelector===undefined;b.$bricks=a.appendedContent===undefined?c?d.children():d.find(a.itemSelector):c?a.appendedContent:a.appendedContent.filter(a.itemSelector)},placeBrick:function(d,b,a,c,h){b=Math.min.apply(Math,a);for(var i=b+d.outerHeight(true),f=a.length,k=f,m=c.colCount+1-f;f--;)if(a[f]==b)k=f;d.applyStyle({left:c.colW*k+c.posLeft,top:b},e.extend(true,{},h.animationOptions));for(f=0;f<m;f++)c.colY[k+f]=i},setup:function(d,b,a){g.getBricks(d,a,b);if(a.masoned)a.previousData=
+d.data("masonry");a.colW=b.columnWidth===undefined?a.masoned?a.previousData.colW:a.$bricks.outerWidth(true):b.columnWidth;a.colCount=Math.floor(d.width()/a.colW);a.colCount=Math.max(a.colCount,1)},arrange:function(d,b,a){var c;if(!a.masoned||b.appendedContent!==undefined)a.$bricks.css("position","absolute");if(a.masoned){a.posTop=a.previousData.posTop;a.posLeft=a.previousData.posLeft}else{d.css("position","relative");var h=e(document.createElement("div"));d.prepend(h);a.posTop=Math.round(h.position().top);
+a.posLeft=Math.round(h.position().left);h.remove()}if(a.masoned&&b.appendedContent!==undefined){a.colY=a.previousData.colY;for(c=a.previousData.colCount;c<a.colCount;c++)a.colY[c]=a.posTop}else{a.colY=[];for(c=a.colCount;c--;)a.colY.push(a.posTop)}e.fn.applyStyle=a.masoned&&b.animate?e.fn.animate:e.fn.css;b.singleMode?a.$bricks.each(function(){var i=e(this);g.placeBrick(i,a.colCount,a.colY,a,b)}):a.$bricks.each(function(){var i=e(this),f=Math.ceil(i.outerWidth(true)/a.colW);f=Math.min(f,a.colCount);
+if(f===1)g.placeBrick(i,a.colCount,a.colY,a,b);else{var k=a.colCount+1-f,m=[];for(c=0;c<k;c++){var p=a.colY.slice(c,c+f);m[c]=Math.max.apply(Math,p)}g.placeBrick(i,k,m,a,b)}});a.wallH=Math.max.apply(Math,a.colY);d.applyStyle({height:a.wallH-a.posTop},e.extend(true,[],b.animationOptions));a.masoned||setTimeout(function(){d.addClass("masoned")},1);l.call(a.$bricks);d.data("masonry",a)},resize:function(d,b,a){a.masoned=!!d.data("masonry");var c=d.data("masonry").colCount;g.setup(d,b,a);a.colCount!=c&&
+g.arrange(d,b,a)}};return this.each(function(){var d=e(this),b={};b.masoned=!!d.data("masonry");var a=b.masoned?d.data("masonry").options:{},c=e.extend({},e.fn.masonry.defaults,a,j),h=a.resizeable;b.options=c.saveOptions?c:a;l=l||function(){};g.getBricks(d,b,c);if(!b.$bricks.length)return this;g.setup(d,c,b);g.arrange(d,c,b);!h&&c.resizeable&&e(window).bind("smartresize.masonry",function(){g.resize(d,c,b)});h&&!c.resizeable&&e(window).unbind("smartresize.masonry")})};e.fn.masonry.defaults={singleMode:false,
+columnWidth:undefined,itemSelector:undefined,appendedContent:undefined,saveOptions:true,resizeable:true,animate:false,animationOptions:{}}})(jQuery);
+
+/**
+* hoverIntent r5 // 2007.03.27 // jQuery 1.1.2+
+* <http://cherne.net/brian/resources/jquery.hoverIntent.html>
+* 
+* @param  f  onMouseOver function || An object with configuration options
+* @param  g  onMouseOut function  || Nothing (use configuration options object)
+* @author    Brian Cherne <brian@cherne.net>
+*/
+(function($){$.fn.hoverIntent=function(f,g){var cfg={sensitivity:7,interval:100,timeout:0};cfg=$.extend(cfg,g?{over:f,out:g}:f);var cX,cY,pX,pY;var track=function(ev){cX=ev.pageX;cY=ev.pageY;};var compare=function(ev,ob){ob.hoverIntent_t=clearTimeout(ob.hoverIntent_t);if((Math.abs(pX-cX)+Math.abs(pY-cY))<cfg.sensitivity){$(ob).unbind("mousemove",track);ob.hoverIntent_s=1;return cfg.over.apply(ob,[ev]);}else{pX=cX;pY=cY;ob.hoverIntent_t=setTimeout(function(){compare(ev,ob);},cfg.interval);}};var delay=function(ev,ob){ob.hoverIntent_t=clearTimeout(ob.hoverIntent_t);ob.hoverIntent_s=0;return cfg.out.apply(ob,[ev]);};var handleHover=function(e){var p=(e.type=="mouseover"?e.fromElement:e.toElement)||e.relatedTarget;while(p&&p!=this){try{p=p.parentNode;}catch(e){p=this;}}if(p==this){return false;}var ev=jQuery.extend({},e);var ob=this;if(ob.hoverIntent_t){ob.hoverIntent_t=clearTimeout(ob.hoverIntent_t);}if(e.type=="mouseover"){pX=ev.pageX;pY=ev.pageY;$(ob).bind("mousemove",track);if(ob.hoverIntent_s!=1){ob.hoverIntent_t=setTimeout(function(){compare(ev,ob);},cfg.interval);}}else{$(ob).unbind("mousemove",track);if(ob.hoverIntent_s==1){ob.hoverIntent_t=setTimeout(function(){delay(ev,ob);},cfg.timeout);}}};return this.mouseover(handleHover).mouseout(handleHover);};})(jQuery);
+
+/*
+ * timeago: a jQuery plugin, version: 0.9.2 (2010-09-14)
+ * @requires jQuery v1.2.3 or later
+ *
+ * Timeago is a jQuery plugin that makes it easy to support automatically
+ * updating fuzzy timestamps (e.g. "4 minutes ago" or "about 1 day ago").
+ *
+ * For usage and examples, visit:
+ * http://timeago.yarp.com/
+ *
+ * Licensed under the MIT:
+ * http://www.opensource.org/licenses/mit-license.php
+ *
+ * Copyright (c) 2008-2010, Ryan McGeary (ryanonjavascript -[at]- mcgeary [*dot*] org)
+ */
+(function($){$.timeago=function(timestamp){if(timestamp instanceof Date)return inWords(timestamp);else if(typeof timestamp=="string")return inWords($.timeago.parse(timestamp));else return inWords($.timeago.datetime(timestamp))};var $t=$.timeago;$.extend($.timeago,{settings:{refreshMillis:60000,allowFuture:false,strings:{prefixAgo:null,prefixFromNow:null,suffixAgo:"ago",suffixFromNow:"from now",seconds:"less than a minute",minute:"about a minute",minutes:"%d minutes",hour:"about an hour",hours:"about %d hours",day:"a day",days:"%d days",month:"about a month",months:"%d months",year:"about a year",years:"%d years",numbers:[]}},inWords:function(distanceMillis){var $l=this.settings.strings;var prefix=$l.prefixAgo;var suffix=$l.suffixAgo;if(this.settings.allowFuture){if(distanceMillis<0){prefix=$l.prefixFromNow;suffix=$l.suffixFromNow}distanceMillis=Math.abs(distanceMillis)}var seconds=distanceMillis/1000;var minutes=seconds/60;var hours=minutes/60;var days=hours/24;var years=days/365;function substitute(stringOrFunction,number){var string=$.isFunction(stringOrFunction)?stringOrFunction(number,distanceMillis):stringOrFunction;var value=($l.numbers&&$l.numbers[number])||number;return string.replace(/%d/i,value)}var words=seconds<45&&substitute($l.seconds,Math.round(seconds))||seconds<90&&substitute($l.minute,1)||minutes<45&&substitute($l.minutes,Math.round(minutes))||minutes<90&&substitute($l.hour,1)||hours<24&&substitute($l.hours,Math.round(hours))||hours<48&&substitute($l.day,1)||days<30&&substitute($l.days,Math.floor(days))||days<60&&substitute($l.month,1)||days<365&&substitute($l.months,Math.floor(days/30))||years<2&&substitute($l.year,1)||substitute($l.years,Math.floor(years));return $.trim([prefix,words,suffix].join(" "))},parse:function(iso8601){var s=$.trim(iso8601);s=s.replace(/\.\d\d\d+/,"");s=s.replace(/-/,"/").replace(/-/,"/");s=s.replace(/T/," ").replace(/Z/," UTC");s=s.replace(/([\+-]\d\d)\:?(\d\d)/," $1$2");return new Date(s)},datetime:function(elem){var isTime=$(elem).get(0).tagName.toLowerCase()=="time";var iso8601=isTime?$(elem).attr("datetime"):$(elem).attr("title");return $t.parse(iso8601)}});$.fn.timeago=function(){var self=this;self.each(refresh);var $s=$t.settings;if($s.refreshMillis>0){setInterval(function(){self.each(refresh)},$s.refreshMillis)}return self};function refresh(){var data=prepareData(this);if(!isNaN(data.datetime)){$(this).text(inWords(data.datetime))}return this}function prepareData(element){element=$(element);if(!element.data("timeago")){element.data("timeago",{datetime:$t.datetime(element)});var text=$.trim(element.text());if(text.length>0)element.attr("title",text)}return element.data("timeago")}function inWords(date){return $t.inWords(distance(date))}function distance(date){return(new Date().getTime()-date.getTime())}document.createElement("abbr");document.createElement("time")})(jQuery);
+if(InspireWell.lang == "de"){
+	// German
+	jQuery.timeago.settings.strings = {
+	  prefixAgo: "vor",
+	  prefixFromNow: "in",
+	  suffixAgo: "",
+	  suffixFromNow: "",
+	  seconds: "wenigen Sekunden",
+	  minute: "etwa einer Minute",
+	  minutes: "%d Minuten",
+	  hour: "etwa einer Stunde",
+	  hours: "%d Stunden",
+	  day: "etwa einem Tag",
+	  days: "%d Tagen",
+	  month: "etwa einem Monat",
+	  months: "%d Monaten",
+	  year: "etwa einem Jahr",
+	  years: "%d Jahren"
+	};
+}
+if(InspireWell.lang == "fr"){
+	// French
+	jQuery.timeago.settings.strings = {
+	   // environ ~= about, it's optional
+	   prefixAgo: "il y a",
+	   prefixFromNow: "d'ici",
+	   seconds: "moins d'une minute",
+	   minute: "environ une minute",
+	   minutes: "environ %d minutes",
+	   hour: "environ une heure",
+	   hours: "environ %d heures",
+	   day: "environ un jour",
+	   days: "environ %d jours",
+	   month: "environ un mois",
+	   months: "environ %d mois",
+	   year: "un an",
+	   years: "%d ans"
+	};
+}
+if(InspireWell.lang == "jp"){
+	// Japanese
+	jQuery.timeago.settings.strings = {
+	  prefixAgo: "",
+	  prefixFromNow: "今から",
+	  suffixAgo: "前",
+	  suffixFromNow: "後",
+	  seconds: "ほんの数秒",
+	  minute: "約一分",
+	  minutes: "%d 分",
+	  hour: "大体一時間",
+	  hours: "大体 %d 時間位",
+	  day: "一日",
+	  days: "%d 日ほど",
+	  month: "大体一ヶ月",
+	  months: "%d ヶ月ほど",
+	  year: "丁度一年（虎舞流ｗ）",
+	  years: "%d 年"
+	};
+}
+if(InspireWell.lang == "it"){
+	// Italian
+	jQuery.timeago.settings.strings = {
+	  suffixAgo: "fa",
+	  suffixFromNow: "da ora",
+	  seconds: "meno di un minuto",
+	  minute: "circa un minuto",
+	  minutes: "%d minuti",
+	  hour: "circa un'ora",
+	  hours: "circa %d ore",
+	  day: "un giorno",
+	  days: "%d giorni",
+	  month: "circa un mese",
+	  months: "%d mesi",
+	  year: "circa un anno",
+	  years: "%d anni"
+	};
+}
+
+// ColorBox v1.3.14 - a full featured, light-weight, customizable lightbox based on jQuery 1.3+
+// Copyright (c) 2010 Jack Moore - jack@colorpowered.com
+// Licensed under the MIT license: http://www.opensource.org/licenses/mit-license.php
+(function(b,ib){var t="none",M="LoadedContent",c=false,v="resize.",o="y",q="auto",e=true,L="nofollow",m="x";function f(a,c){a=a?' id="'+i+a+'"':"";c=c?' style="'+c+'"':"";return b("<div"+a+c+"/>")}function p(a,b){b=b===m?n.width():n.height();return typeof a==="string"?Math.round(/%/.test(a)?b/100*parseInt(a,10):parseInt(a,10)):a}function U(b){return a.photo||/\.(gif|png|jpg|jpeg|bmp)(?:\?([^#]*))?(?:#(\.*))?$/i.test(b)}function cb(a){for(var c in a)if(b.isFunction(a[c])&&c.substring(0,2)!=="on")a[c]=a[c].call(l);a.rel=a.rel||l.rel||L;a.href=a.href||b(l).attr("href");a.title=a.title||l.title;return a}function w(c,a){a&&a.call(l);b.event.trigger(c)}function jb(){var b,e=i+"Slideshow_",c="click."+i,f,k;if(a.slideshow&&h[1]){f=function(){F.text(a.slideshowStop).unbind(c).bind(V,function(){if(g<h.length-1||a.loop)b=setTimeout(d.next,a.slideshowSpeed)}).bind(W,function(){clearTimeout(b)}).one(c+" "+N,k);j.removeClass(e+"off").addClass(e+"on");b=setTimeout(d.next,a.slideshowSpeed)};k=function(){clearTimeout(b);F.text(a.slideshowStart).unbind([V,W,N,c].join(" ")).one(c,f);j.removeClass(e+"on").addClass(e+"off")};a.slideshowAuto?f():k()}}function db(c){if(!O){l=c;a=cb(b.extend({},b.data(l,r)));h=b(l);g=0;if(a.rel!==L){h=b("."+G).filter(function(){return (b.data(this,r).rel||this.rel)===a.rel});g=h.index(l);if(g===-1){h=h.add(l);g=h.length-1}}if(!u){u=E=e;j.show();if(a.returnFocus)try{l.blur();b(l).one(eb,function(){try{this.focus()}catch(a){}})}catch(f){}x.css({opacity:+a.opacity,cursor:a.overlayClose?"pointer":q}).show();a.w=p(a.initialWidth,m);a.h=p(a.initialHeight,o);d.position(0);X&&n.bind(v+P+" scroll."+P,function(){x.css({width:n.width(),height:n.height(),top:n.scrollTop(),left:n.scrollLeft()})}).trigger("scroll."+P);w(fb,a.onOpen);Y.add(H).add(I).add(F).add(Z).hide();ab.html(a.close).show()}d.load(e)}}var gb={transition:"elastic",speed:300,width:c,initialWidth:"600",innerWidth:c,maxWidth:c,height:c,initialHeight:"450",innerHeight:c,maxHeight:c,scalePhotos:e,scrolling:e,inline:c,html:c,iframe:c,photo:c,href:c,title:c,rel:c,opacity:.9,preloading:e,current:"image {current} of {total}",previous:"previous",next:"next",close:"close",open:c,returnFocus:e,loop:e,slideshow:c,slideshowAuto:e,slideshowSpeed:2500,slideshowStart:"start slideshow",slideshowStop:"stop slideshow",onOpen:c,onLoad:c,onComplete:c,onCleanup:c,onClosed:c,overlayClose:e,escKey:e,arrowKey:e},r="colorbox",i="cbox",fb=i+"_open",W=i+"_load",V=i+"_complete",N=i+"_cleanup",eb=i+"_closed",Q=i+"_purge",hb=i+"_loaded",A=b.browser.msie&&!b.support.opacity,X=A&&b.browser.version<7,P=i+"_IE6",x,j,B,s,bb,T,R,S,h,n,k,J,K,Z,Y,F,I,H,ab,C,D,y,z,l,g,a,u,E,O=c,d,G=i+"Element";d=b.fn[r]=b[r]=function(c,f){var a=this,d;if(!a[0]&&a.selector)return a;c=c||{};if(f)c.onComplete=f;if(!a[0]||a.selector===undefined){a=b("<a/>");c.open=e}a.each(function(){b.data(this,r,b.extend({},b.data(this,r)||gb,c));b(this).addClass(G)});d=c.open;if(b.isFunction(d))d=d.call(a);d&&db(a[0]);return a};d.init=function(){var l="hover",m="clear:left";n=b(ib);j=f().attr({id:r,"class":A?i+"IE":""});x=f("Overlay",X?"position:absolute":"").hide();B=f("Wrapper");s=f("Content").append(k=f(M,"width:0; height:0; overflow:hidden"),K=f("LoadingOverlay").add(f("LoadingGraphic")),Z=f("Title"),Y=f("Current"),I=f("Next"),H=f("Previous"),F=f("Slideshow").bind(fb,jb),ab=f("Close"));B.append(f().append(f("TopLeft"),bb=f("TopCenter"),f("TopRight")),f(c,m).append(T=f("MiddleLeft"),s,R=f("MiddleRight")),f(c,m).append(f("BottomLeft"),S=f("BottomCenter"),f("BottomRight"))).children().children().css({"float":"left"});J=f(c,"position:absolute; width:9999px; visibility:hidden; display:none");b("body").prepend(x,j.append(B,J));s.children().hover(function(){b(this).addClass(l)},function(){b(this).removeClass(l)}).addClass(l);C=bb.height()+S.height()+s.outerHeight(e)-s.height();D=T.width()+R.width()+s.outerWidth(e)-s.width();y=k.outerHeight(e);z=k.outerWidth(e);j.css({"padding-bottom":C,"padding-right":D}).hide();I.click(d.next);H.click(d.prev);ab.click(d.close);s.children().removeClass(l);b("."+G).live("click",function(a){if(!(a.button!==0&&typeof a.button!=="undefined"||a.ctrlKey||a.shiftKey||a.altKey)){a.preventDefault();db(this)}});x.click(function(){a.overlayClose&&d.close()});b(document).bind("keydown",function(b){if(u&&a.escKey&&b.keyCode===27){b.preventDefault();d.close()}if(u&&a.arrowKey&&!E&&h[1])if(b.keyCode===37&&(g||a.loop)){b.preventDefault();H.click()}else if(b.keyCode===39&&(g<h.length-1||a.loop)){b.preventDefault();I.click()}})};d.remove=function(){j.add(x).remove();b("."+G).die("click").removeData(r).removeClass(G)};d.position=function(f,d){function b(a){bb[0].style.width=S[0].style.width=s[0].style.width=a.style.width;K[0].style.height=K[1].style.height=s[0].style.height=T[0].style.height=R[0].style.height=a.style.height}var e,h=Math.max(document.documentElement.clientHeight-a.h-y-C,0)/2+n.scrollTop(),g=Math.max(n.width()-a.w-z-D,0)/2+n.scrollLeft();e=j.width()===a.w+z&&j.height()===a.h+y?0:f;B[0].style.width=B[0].style.height="9999px";j.dequeue().animate({width:a.w+z,height:a.h+y,top:h,left:g},{duration:e,complete:function(){b(this);E=c;B[0].style.width=a.w+z+D+"px";B[0].style.height=a.h+y+C+"px";d&&d()},step:function(){b(this)}})};d.resize=function(b){if(u){b=b||{};if(b.width)a.w=p(b.width,m)-z-D;if(b.innerWidth)a.w=p(b.innerWidth,m);k.css({width:a.w});if(b.height)a.h=p(b.height,o)-y-C;if(b.innerHeight)a.h=p(b.innerHeight,o);if(!b.innerHeight&&!b.height){b=k.wrapInner("<div style='overflow:auto'></div>").children();a.h=b.height();b.replaceWith(b.children())}k.css({height:a.h});d.position(a.transition===t?0:a.speed)}};d.prep=function(o){var e="hidden";function m(t){var q,f,o,e,m=h.length,s=a.loop;d.position(t,function(){if(u){A&&p&&k.fadeIn(100);k.show();w(hb);Z.show().html(a.title);if(m>1){typeof a.current==="string"&&Y.html(a.current.replace(/\{current\}/,g+1).replace(/\{total\}/,m)).show();I[s||g<m-1?"show":"hide"]().html(a.next);H[s||g?"show":"hide"]().html(a.previous);q=g?h[g-1]:h[m-1];o=g<m-1?h[g+1]:h[0];a.slideshow&&F.show();if(a.preloading){e=b.data(o,r).href||o.href;f=b.data(q,r).href||q.href;e=b.isFunction(e)?e.call(o):e;f=b.isFunction(f)?f.call(q):f;if(U(e))b("<img/>")[0].src=e;if(U(f))b("<img/>")[0].src=f}}K.hide();if(a.transition==="fade")j.fadeTo(l,1,function(){if(A)j[0].style.filter=c});else if(A)j[0].style.filter=c;n.bind(v+i,function(){d.position(0)});w(V,a.onComplete)}})}if(u){var p,l=a.transition===t?0:a.speed;n.unbind(v+i);k.remove();k=f(M).html(o);k.hide().appendTo(J.show()).css({width:function(){a.w=a.w||k.width();a.w=a.mw&&a.mw<a.w?a.mw:a.w;return a.w}(),overflow:a.scrolling?q:e}).css({height:function(){a.h=a.h||k.height();a.h=a.mh&&a.mh<a.h?a.mh:a.h;return a.h}()}).prependTo(s);J.hide();b("#"+i+"Photo").css({cssFloat:t,marginLeft:q,marginRight:q});X&&b("select").not(j.find("select")).filter(function(){return this.style.visibility!==e}).css({visibility:e}).one(N,function(){this.style.visibility="inherit"});a.transition==="fade"?j.fadeTo(l,0,function(){m(0)}):m(l)}};d.load=function(u){var n,c,s,q=d.prep;E=e;l=h[g];u||(a=cb(b.extend({},b.data(l,r))));w(Q);w(W,a.onLoad);a.h=a.height?p(a.height,o)-y-C:a.innerHeight&&p(a.innerHeight,o);a.w=a.width?p(a.width,m)-z-D:a.innerWidth&&p(a.innerWidth,m);a.mw=a.w;a.mh=a.h;if(a.maxWidth){a.mw=p(a.maxWidth,m)-z-D;a.mw=a.w&&a.w<a.mw?a.w:a.mw}if(a.maxHeight){a.mh=p(a.maxHeight,o)-y-C;a.mh=a.h&&a.h<a.mh?a.h:a.mh}n=a.href;K.show();if(a.inline){f().hide().insertBefore(b(n)[0]).one(Q,function(){b(this).replaceWith(k.children())});q(b(n))}else if(a.iframe){j.one(hb,function(){var c=b("<iframe name='"+(new Date).getTime()+"' frameborder=0"+(a.scrolling?"":" scrolling='no'")+(A?" allowtransparency='true'":"")+" style='width:100%; height:100%; border:0; display:block;'/>");c[0].src=a.href;c.appendTo(k).one(Q,function(){c[0].src='//about:blank'})});q(" ")}else if(a.html)q(a.html);else if(U(n)){c=new Image;c.onload=function(){var e;c.onload=null;c.id=i+"Photo";b(c).css({border:t,display:"block",cssFloat:"left"});if(a.scalePhotos){s=function(){c.height-=c.height*e;c.width-=c.width*e};if(a.mw&&c.width>a.mw){e=(c.width-a.mw)/c.width;s()}if(a.mh&&c.height>a.mh){e=(c.height-a.mh)/c.height;s()}}if(a.h)c.style.marginTop=Math.max(a.h-c.height,0)/2+"px";h[1]&&(g<h.length-1||a.loop)&&b(c).css({cursor:"pointer"}).click(d.next);if(A)c.style.msInterpolationMode="bicubic";setTimeout(function(){q(c)},1)};setTimeout(function(){c.src=n},1)}else n&&J.load(n,function(d,c,a){q(c==="error"?"Request unsuccessful: "+a.statusText:b(this).children())})};d.next=function(){if(!E){g=g<h.length-1?g+1:0;d.load()}};d.prev=function(){if(!E){g=g?g-1:h.length-1;d.load()}};d.close=function(){if(u&&!O){O=e;u=c;w(N,a.onCleanup);n.unbind("."+i+" ."+P);x.fadeTo("fast",0);j.stop().fadeTo("fast",0,function(){w(Q);k.remove();j.add(x).css({opacity:1,cursor:q}).hide();setTimeout(function(){O=c;w(eb,a.onClosed)},1)})}};d.element=function(){return b(l)};d.settings=gb;b(d.init)})(jQuery,this)
+
+
+/*
+ * QueryLoader		Preload your site before displaying it!
+ * Author:			Gaya Kessler
+ * Date:			23-09-09
+ * URL:				http://www.gayadesign.com
+ * Version:			1.0
+ * 
+ * A simple jQuery powered preloader to load every image on the page and in the CSS
+ * before displaying the page to the user.
+ */
+var QueryLoader={overlay:"",loadBar:"",preloader:"",items:new Array(),doneStatus:0,doneNow:0,selectorPreload:"body",ieLoadFixTime:2500,ieTimeout:"",init:function(){if(navigator.userAgent.match(/MSIE (\d+(?:\.\d+)+(?:b\d*)?)/)=="MSIE 6.0,6.0"){return false}if(QueryLoader.selectorPreload=="body"){QueryLoader.spawnLoader();QueryLoader.getImages(QueryLoader.selectorPreload);QueryLoader.createPreloading()}else{$(document).ready(function(){QueryLoader.spawnLoader();QueryLoader.getImages(QueryLoader.selectorPreload);QueryLoader.createPreloading()})}QueryLoader.ieTimeout=setTimeout("QueryLoader.ieLoadFix()",QueryLoader.ieLoadFixTime)},ieLoadFix:function(){while((100/QueryLoader.doneStatus)*QueryLoader.doneNow<100){QueryLoader.imgCallback()}},imgCallback:function(){QueryLoader.doneNow++;QueryLoader.animateLoader()},getImages:function(selector){var everything=$(selector).find("*:not(script)").each(function(){var url="";if($(this).css("background-image")!="none"){var url=$(this).css("background-image")}else if(typeof($(this).attr("src"))!="undefined"&&$(this).attr("tagName").toLowerCase()=="img"){var url=$(this).attr("src")}url=url.replace("url(\"","");url=url.replace("url(","");url=url.replace("\")","");url=url.replace(")","");if(url.length>0){QueryLoader.items.push(url)}})},createPreloading:function(){QueryLoader.preloader=$("<div></div>").appendTo(QueryLoader.selectorPreload);$(QueryLoader.preloader).css({height:"0px",width:"0px",overflow:"hidden"});var length=QueryLoader.items.length;QueryLoader.doneStatus=length;for(var i=0;i<length;i++){var imgLoad=$("<img></img>");$(imgLoad).attr("src",QueryLoader.items[i]);$(imgLoad).unbind("load");$(imgLoad).bind("load",function(){QueryLoader.imgCallback()});$(imgLoad).appendTo($(QueryLoader.preloader))}},spawnLoader:function(){if(QueryLoader.selectorPreload=="body"){var height=$(window).height();var width=$(window).width();var position="fixed"}else{var height=$(QueryLoader.selectorPreload).outerHeight();var width=$(QueryLoader.selectorPreload).outerWidth();var position="absolute"}var left=$(QueryLoader.selectorPreload).offset()['left'];var top=$(QueryLoader.selectorPreload).offset()['top'];$("#loading").show();QueryLoader.loadBar=$("<div></div>").appendTo($(QueryLoader.selectorPreload));$(QueryLoader.loadBar).addClass("QLoader");$(QueryLoader.loadBar).css({})},animateLoader:function(){var perc=(100/QueryLoader.doneStatus)*QueryLoader.doneNow;if(perc>99){$(QueryLoader.loadBar).stop().animate({width:perc+"%"},500,"linear",function(){QueryLoader.doneLoad()})}else{$(QueryLoader.loadBar).stop().animate({width:perc+"%"},500,"linear",function(){})}},doneLoad:function(){clearTimeout(QueryLoader.ieTimeout);if(QueryLoader.selectorPreload=="body"){var height=$(window).height()}else{var height=$(QueryLoader.selectorPreload).outerHeight()}$(QueryLoader.loadBar).fadeOut(500,function(){$(QueryLoader.overlay).remove();$(QueryLoader.preloader).remove()})}}
+
+
+/*!
+// Infinite Scroll jQuery plugin
+// copyright Paul Irish, licensed GPL & MIT
+// version 1.5.100504
+
+// home and docs: http://www.infinite-scroll.com
+*/
+ 
+;(function($){
+    
+  $.fn.infinitescroll = function(options,callback){
+    
+    // console log wrapper.
+    function debug(){
+      if (opts.debug) { window.console && console.log.call(console,arguments)}
+    }
+    
+    // grab each selector option and see if any fail.
+    function areSelectorsValid(opts){
+      for (var key in opts){
+        if (key.indexOf && key.indexOf('Selector') > -1 && $(opts[key]).length === 0){
+            debug('Your ' + key + ' found no elements.');    
+            return false;
+        } 
+        return true;
+      }
+    }
+
+
+    // find the number to increment in the path.
+    function determinePath(path){
+      
+      path.match(relurl) ? path.match(relurl)[2] : path; 
+
+      // there is a 2 in the url surrounded by slashes, e.g. /page/2/
+      if ( path.match(/^(.*?)\b2\b(.*?$)/) ){  
+          path = path.match(/^(.*?)\b2\b(.*?$)/).slice(1);
+      } else 
+        // if there is any 2 in the url at all.
+        if (path.match(/^(.*?)2(.*?$)/)){
+          
+          // page= is used in django:
+          //   http://www.infinite-scroll.com/changelog/comment-page-1/#comment-127
+          if ( path.match(/^(.*?page=)2(\/.*|$)/) ){
+            path = path.match(/^(.*?page=)2(\/.*|$)/).slice(1);
+            return path;
+          }
+          
+          debug('Trying backup next selector parse technique. Treacherous waters here, matey.');
+          path = path.match(/^(.*?)2(.*?$)/).slice(1);
+      } else {
+          
+        // page= is used in drupal too but second page is page=1 not page=2:
+        // thx Jerod Fritz, vladikoff
+        if (path.match(/^(.*?page=)1(\/.*|$)/)) {
+          path = path.match(/^(.*?page=)1(\/.*|$)/).slice(1);
+          return path;
+        }  
+
+        debug('Sorry, we couldn\'t parse your Next (Previous Posts) URL. Verify your the css selector points to the correct A tag. If you still get this error: yell, scream, and kindly ask for help at infinite-scroll.com.');    
+        props.isInvalidPage = true;  //prevent it from running on this page.
+      }
+      
+      return path;
+    }
+
+
+    // 'document' means the full document usually, but sometimes the content of the overflow'd div in local mode
+    function getDocumentHeight(){
+      // weird doubletouch of scrollheight because http://soulpass.com/2006/07/24/ie-and-scrollheight/
+      return opts.localMode ? ($(props.container)[0].scrollHeight && $(props.container)[0].scrollHeight) 
+                                // needs to be document's height. (not props.container's) html's height is wrong in IE.
+                                : $(document).height()
+    }
+    
+    
+        
+    function isNearBottom(){
+      
+      // distance remaining in the scroll
+      // computed as: document height - distance already scroll - viewport height - buffer
+      var pixelsFromWindowBottomToBottom = 0 +
+                getDocumentHeight()  - (
+                    opts.localMode ? $(props.container).scrollTop() : 
+                    // have to do this bs because safari doesnt report a scrollTop on the html element
+                    ($(props.container).scrollTop() || $(props.container.ownerDocument.body).scrollTop())
+                    ) - $(opts.localMode ? props.container : window).height();
+      
+      debug('math:',pixelsFromWindowBottomToBottom, props.pixelsFromNavToBottom);
+      
+      // if distance remaining in the scroll (including buffer) is less than the orignal nav to bottom....
+      return (pixelsFromWindowBottomToBottom  - opts.bufferPx < props.pixelsFromNavToBottom);    
+    }    
+    
+    function showDoneMsg(){
+      /*props.loadingMsg
+        .find('img').hide()
+        .parent()
+          .find('div').html(opts.donetext).animate({opacity: 1},2000, function() {
+            $(this).parent().fadeOut('normal');
+          });*/
+		$('#loading').hide();
+      
+      // user provided callback when done    
+      opts.errorCallback();
+    }
+    
+    function infscrSetup(){
+    
+        if (props.isDuringAjax || props.isInvalidPage || props.isDone) return; 
+        
+        if ( !isNearBottom(opts,props) ) return; 
+        
+        $(document).trigger('retrieve.infscr');
+                
+                
+    }  // end of infscrSetup()
+          
+  
+      
+    function kickOffAjax(){
+        
+        // we dont want to fire the ajax multiple times
+        props.isDuringAjax = true; 
+        
+        // show the loading message and hide the previous/next links
+        //props.loadingMsg.appendTo( opts.loadMsgSelector ).show();
+        //$( opts.navSelector ).hide();
+		$('#loading').show();
+        
+        // increment the URL bit. e.g. /page/3/
+        props.currPage++;
+        
+        debug('heading into ajax',path);
+        
+        // if we're dealing with a table we can't use DIVs
+        box = $(opts.contentSelector).is('table') ? $('<tbody/>') : $('<div/>');  
+        frag = document.createDocumentFragment();
+
+
+        box.load( path.join( props.currPage ) + ' ' + opts.itemSelector,null,loadCallback); 
+        
+    }
+    
+    function loadCallback(){
+        // if we've hit the last page...
+        if (props.isDone){ 
+            showDoneMsg();
+            return false;    
+              
+        } else {
+          
+            var children = box.children().get();
+            
+            // if it didn't return anything
+            if (children.length == 0){
+              // fake an ajaxError so we can quit.
+              return $.event.trigger( "ajaxError", [{status:404}] ); 
+            } 
+            
+            // use a documentFragment because it works when content is going into a table or UL
+            while (box[0].firstChild){
+              frag.appendChild(  box[0].firstChild );
+            }
+
+           	$(opts.contentSelector)[0].appendChild(frag);
+            
+            // fadeout currently makes the <em>'d text ugly in IE6
+            //props.loadingMsg.fadeOut('normal' ); 
+			$('#loading').hide();
+
+            // smooth scroll to ease in the new content
+            if (opts.animate){ 
+                var scrollTo = $(window).scrollTop() + $('#infscr-loading').height() + opts.extraScrollPx + 'px';
+                $('html,body').animate({scrollTop: scrollTo}, 800,function(){ props.isDuringAjax = false; }); 
+            }
+        
+            // previously, we would pass in the new DOM element as context for the callback
+            // however we're now using a documentfragment, which doesnt havent parents or children,
+            // so the context is the contentContainer guy, and we pass in an array
+            //   of the elements collected as the first argument.
+            callback.call( $(opts.contentSelector)[0], children );
+        
+            if (!opts.animate) props.isDuringAjax = false; // once the call is done, we can allow it again.
+        }
+    }
+    
+      
+    // lets get started.
+    $.browser.ie6 = $.browser.msie && $.browser.version < 7;
+    
+    var opts    = $.extend({}, $.infinitescroll.defaults, options),
+        props   = $.infinitescroll, // shorthand
+        box, frag;
+        
+    callback    = callback || function(){};
+    
+    if (!areSelectorsValid(opts)){ return false;  }
+    
+     // we doing this on an overflow:auto div?
+    props.container   =  opts.localMode ? this : document.documentElement;
+                          
+    // contentSelector we'll use for our .load()
+    opts.contentSelector = opts.contentSelector || this;
+    
+    // loadMsgSelector - if we want to place the load message in a specific selector, defaulted to the contentSelector
+    opts.loadMsgSelector = opts.loadMsgSelector || opts.contentSelector;
+    
+    
+    // get the relative URL - everything past the domain name.
+    var relurl        = /(.*?\/\/).*?(\/.*)/,
+        path          = $(opts.nextSelector).attr('href');
+    
+    
+    if (!path) { debug('Navigation selector not found'); return; }
+    
+    // set the path to be a relative URL from root.
+    path          = determinePath(path);
+    
+
+    // reset scrollTop in case of page refresh:
+    if (opts.localMode) $(props.container)[0].scrollTop = 0;
+
+    // distance from nav links to bottom
+    // computed as: height of the document + top offset of container - top offset of nav link
+    props.pixelsFromNavToBottom =  getDocumentHeight()  +
+                                     (props.container == document.documentElement ? 0 : $(props.container).offset().top )- 
+                                     $(opts.navSelector).offset().top;
+    
+    // define loading msg
+    props.loadingMsg = $('<div id="infscr-loading" style="text-align: center;"><img alt="Loading..." src="'+
+                                  opts.loadingImg+'" /><div>'+opts.loadingText+'</div></div>');    
+     // preload the image
+    (new Image()).src    = opts.loadingImg;
+              
+
+  
+    // set up our bindings
+    $(document).ajaxError(function(e,xhr,opt){
+      debug('Page not found. Self-destructing...');    
+      
+      // die if we're out of pages.
+      if (xhr.status == 404){ 
+        showDoneMsg();
+        props.isDone = true; 
+        $(opts.localMode ? this : window).unbind('scroll.infscr');
+      } 
+    });
+    
+    // bind scroll handler to element (if its a local scroll) or window  
+    $(opts.localMode ? this : window)
+      .bind('scroll.infscr', infscrSetup)
+      .trigger('scroll.infscr'); // trigger the event, in case it's a short page
+    
+    $(document).bind('retrieve.infscr',kickOffAjax);
+    
+    return this;
+  
+  }  // end of $.fn.infinitescroll()
+  
+
+  
+  // options and read-only properties object
+  
+  $.infinitescroll = {     
+        defaults      : {
+                          debug           : false,
+                          preload         : false,
+                          nextSelector    : "div.navigation a:first",
+                          loadingImg      : "http://www.infinite-scroll.com/loading.gif",
+                          loadingText     : "<em>Loading the next set of posts...</em>",
+                          donetext        : "<em>Congratulations, you've reached the end of the internet.</em>",
+                          navSelector     : "div.navigation",
+                          contentSelector : null,           // not really a selector. :) it's whatever the method was called on..
+                          loadMsgSelector : null,
+                          extraScrollPx   : 150,
+                          itemSelector    : "div.post",
+                          animate         : false,
+                          localMode      : false,
+                          bufferPx        : 40,
+                          errorCallback   : function(){}
+                        }, 
+        loadingImg    : undefined,
+        loadingMsg    : undefined,
+        container     : undefined,
+        currPage      : 1,
+        currDOMChunk  : null,  // defined in setup()'s load()
+        isDuringAjax  : false,
+        isInvalidPage : false,
+        isDone        : false  // for when it goes all the way through the archive.
+  };
+  
+
+
+})(jQuery);
+
+/*! Copyright (c) 2010 Brandon Aaron (http://brandonaaron.net)
+ * Dual licensed under the MIT (MIT_LICENSE.txt)
+ * and GPL Version 2 (GPL_LICENSE.txt) licenses.
+ *
+ * Version: 1.1.1
+ * Requires jQuery 1.3+
+ * Docs: http://docs.jquery.com/Plugins/livequery
+ */
+
+(function($) {
+
+$.extend($.fn, {
+	livequery: function(type, fn, fn2) {
+		var self = this, q;
+
+		// Handle different call patterns
+		if ($.isFunction(type))
+			fn2 = fn, fn = type, type = undefined;
+
+		// See if Live Query already exists
+		$.each( $.livequery.queries, function(i, query) {
+			if ( self.selector == query.selector && self.context == query.context &&
+				type == query.type && (!fn || fn.$lqguid == query.fn.$lqguid) && (!fn2 || fn2.$lqguid == query.fn2.$lqguid) )
+					// Found the query, exit the each loop
+					return (q = query) && false;
+		});
+
+		// Create new Live Query if it wasn't found
+		q = q || new $.livequery(this.selector, this.context, type, fn, fn2);
+
+		// Make sure it is running
+		q.stopped = false;
+
+		// Run it immediately for the first time
+		q.run();
+
+		// Contnue the chain
+		return this;
+	},
+
+	expire: function(type, fn, fn2) {
+		var self = this;
+
+		// Handle different call patterns
+		if ($.isFunction(type))
+			fn2 = fn, fn = type, type = undefined;
+
+		// Find the Live Query based on arguments and stop it
+		$.each( $.livequery.queries, function(i, query) {
+			if ( self.selector == query.selector && self.context == query.context &&
+				(!type || type == query.type) && (!fn || fn.$lqguid == query.fn.$lqguid) && (!fn2 || fn2.$lqguid == query.fn2.$lqguid) && !this.stopped )
+					$.livequery.stop(query.id);
+		});
+
+		// Continue the chain
+		return this;
+	}
+});
+
+$.livequery = function(selector, context, type, fn, fn2) {
+	this.selector = selector;
+	this.context  = context;
+	this.type     = type;
+	this.fn       = fn;
+	this.fn2      = fn2;
+	this.elements = [];
+	this.stopped  = false;
+
+	// The id is the index of the Live Query in $.livequery.queries
+	this.id = $.livequery.queries.push(this)-1;
+
+	// Mark the functions for matching later on
+	fn.$lqguid = fn.$lqguid || $.livequery.guid++;
+	if (fn2) fn2.$lqguid = fn2.$lqguid || $.livequery.guid++;
+
+	// Return the Live Query
+	return this;
+};
+
+$.livequery.prototype = {
+	stop: function() {
+		var query = this;
+
+		if ( this.type )
+			// Unbind all bound events
+			this.elements.unbind(this.type, this.fn);
+		else if (this.fn2)
+			// Call the second function for all matched elements
+			this.elements.each(function(i, el) {
+				query.fn2.apply(el);
+			});
+
+		// Clear out matched elements
+		this.elements = [];
+
+		// Stop the Live Query from running until restarted
+		this.stopped = true;
+	},
+
+	run: function() {
+		// Short-circuit if stopped
+		if ( this.stopped ) return;
+		var query = this;
+
+		var oEls = this.elements,
+			els  = $(this.selector, this.context),
+			nEls = els.not(oEls);
+
+		// Set elements to the latest set of matched elements
+		this.elements = els;
+
+		if (this.type) {
+			// Bind events to newly matched elements
+			nEls.bind(this.type, this.fn);
+
+			// Unbind events to elements no longer matched
+			if (oEls.length > 0)
+				$.each(oEls, function(i, el) {
+					if ( $.inArray(el, els) < 0 )
+						$.event.remove(el, query.type, query.fn);
+				});
+		}
+		else {
+			// Call the first function for newly matched elements
+			nEls.each(function() {
+				query.fn.apply(this);
+			});
+
+			// Call the second function for elements no longer matched
+			if ( this.fn2 && oEls.length > 0 )
+				$.each(oEls, function(i, el) {
+					if ( $.inArray(el, els) < 0 )
+						query.fn2.apply(el);
+				});
+		}
+	}
+};
+
+$.extend($.livequery, {
+	guid: 0,
+	queries: [],
+	queue: [],
+	running: false,
+	timeout: null,
+
+	checkQueue: function() {
+		if ( $.livequery.running && $.livequery.queue.length ) {
+			var length = $.livequery.queue.length;
+			// Run each Live Query currently in the queue
+			while ( length-- )
+				$.livequery.queries[ $.livequery.queue.shift() ].run();
+		}
+	},
+
+	pause: function() {
+		// Don't run anymore Live Queries until restarted
+		$.livequery.running = false;
+	},
+
+	play: function() {
+		// Restart Live Queries
+		$.livequery.running = true;
+		// Request a run of the Live Queries
+		$.livequery.run();
+	},
+
+	registerPlugin: function() {
+		$.each( arguments, function(i,n) {
+			// Short-circuit if the method doesn't exist
+			if (!$.fn[n]) return;
+
+			// Save a reference to the original method
+			var old = $.fn[n];
+
+			// Create a new method
+			$.fn[n] = function() {
+				// Call the original method
+				var r = old.apply(this, arguments);
+
+				// Request a run of the Live Queries
+				$.livequery.run();
+
+				// Return the original methods result
+				return r;
+			}
+		});
+	},
+
+	run: function(id) {
+		if (id != undefined) {
+			// Put the particular Live Query in the queue if it doesn't already exist
+			if ( $.inArray(id, $.livequery.queue) < 0 )
+				$.livequery.queue.push( id );
+		}
+		else
+			// Put each Live Query in the queue if it doesn't already exist
+			$.each( $.livequery.queries, function(id) {
+				if ( $.inArray(id, $.livequery.queue) < 0 )
+					$.livequery.queue.push( id );
+			});
+
+		// Clear timeout if it already exists
+		if ($.livequery.timeout) clearTimeout($.livequery.timeout);
+		// Create a timeout to check the queue and actually run the Live Queries
+		$.livequery.timeout = setTimeout($.livequery.checkQueue, 20);
+	},
+
+	stop: function(id) {
+		if (id != undefined)
+			// Stop are particular Live Query
+			$.livequery.queries[ id ].stop();
+		else
+			// Stop all Live Queries
+			$.each( $.livequery.queries, function(id) {
+				$.livequery.queries[ id ].stop();
+			});
+	}
+});
+
+// Register core DOM manipulation methods
+$.livequery.registerPlugin('append', 'prepend', 'after', 'before', 'wrap', 'attr', 'removeAttr', 'addClass', 'removeClass', 'toggleClass', 'empty', 'remove', 'html');
+
+// Run Live Queries when the Document is ready
+$(function() { $.livequery.play(); });
+
+})(jQuery);
+
+
+// usage: log('inside coolFunc',this,arguments);
+// paulirish.com/2009/log-a-lightweight-wrapper-for-consolelog/
+window.log = function(){
+  log.history = log.history || [];   // store logs to an array for reference
+  log.history.push(arguments);
+  if(this.console){
+    console.log( Array.prototype.slice.call(arguments) );
+  }
+};
+
+
